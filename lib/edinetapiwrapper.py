@@ -37,14 +37,14 @@ class EdinetApiWrapper:
                     return False
 
                 # write out xbrl file
-                print(target_file_name)
                 with zf.open(target_file_name) as extracted_file:
                     content = extracted_file.read()
-                with open(xbrl_path, "w") as xbrl_out:
+                with open(xbrl_path, "wb") as xbrl_out:
                     xbrl_out.write(content)
+                print("saved: " + target_file_name)
                 return True
 
-    def _get_doc_info(self, date_str: str) -> list[tuple[str, str, str]]:
+    def _get_doc_info(self, date_str: str) -> list[tuple[str, str, str, str]]:
 
         # get document list on the date
         params = {"date": date_str, "type": 2, "Subscription-Key": self._edinet_api_key}  # 決算書類
@@ -54,22 +54,26 @@ class EdinetApiWrapper:
 
         # json to DataFrame
         documents = data["results"]
+        if len(documents) == 0:
+            return []
         df = pd.DataFrame(documents)
         df_filtered = df[["docID", "secCode", "edinetCode", "filerName", "docDescription", "submitDateTime"]]
 
-        # フィルタリング
-        df_financial = df_filtered[df_filtered["docDescription"].str.contains("有価証券報告書")]
-
         # まとめ
         result = []
-        for index, doc in df_financial.iterrows():
-            result.append((doc["edinetCode"], doc["submitDateTime"], doc["docID"]))
+        for index, doc in df_filtered.iterrows():
+
+            if doc["docDescription"] is None or not "有価証券報告書" in doc["docDescription"]:
+                continue
+
+            # print(doc["filerName"] + ": " + doc["submitDateTime"] + ": " + doc["docDescription"] + ": " + doc["docID"])
+            result.append((doc["filerName"], doc["edinetCode"], doc["submitDateTime"], doc["docID"]))
 
         return result
 
     def _download_zip_and_extract_xbrl(self, doc_id: str, xbrl_path: str) -> bool:
 
-        url = f"https://api.edinet-fsa.go.jp/api/v2/documents/{doc_id}?type=5&Subscription-Key={self._edinet_api_key}"
+        url = f"https://api.edinet-fsa.go.jp/api/v2/documents/{doc_id}?type=1&Subscription-Key={self._edinet_api_key}"
         max_loop = 3
         for loop in range(max_loop):
             try:
@@ -83,6 +87,7 @@ class EdinetApiWrapper:
             if loop == max_loop - 1:
                 print("exceeded retry loop!")
         if zip_bytes is not None:
+            print("downloaded: " + doc_id)
             return self._save_xbrl_file_from_zip_bytes(zip_bytes, xbrl_path)
         return False
 
@@ -93,14 +98,24 @@ class EdinetApiWrapper:
     def download_xbrl_files(self, start: datetime, end: datetime):
         date_list = self._generate_date_range_str(start, end)
 
+        companies = {}
+
+        # 重複は最新で上書き
         for date_str in date_list:
             doc_info = self._get_doc_info(date_str)
-            for edinet_code, submit_date_time, doc_id in doc_info:
-                filename = f"{edinet_code}_{submit_date_time}_{doc_id}.xbrl"
-                xbrl_path = os.path.join(self._download_path, filename)
+            for filer_name, edinet_code, submit_date_time, doc_id in doc_info:
+                companies[filer_name] = (edinet_code, submit_date_time, doc_id)
 
-                if os.path.exists(xbrl_path):
-                    print("file exists: " + xbrl_path)
-                    continue
+        # ダウンロード
+        for edinet_code, submit_date_time, doc_id in companies.values():
 
-                self._download_zip_and_extract_xbrl(doc_id, xbrl_path)
+            submit_day = submit_date_time.split(" ")[0]
+            filename = f"{edinet_code}_{submit_day}_{doc_id}.xbrl"
+            xbrl_path = os.path.join(self._download_path, filename)
+
+            if os.path.exists(xbrl_path):
+                print("file exists: " + xbrl_path)
+                # continue
+                os.remove(xbrl_path)
+
+            self._download_zip_and_extract_xbrl(doc_id, xbrl_path)

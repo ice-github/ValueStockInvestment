@@ -23,7 +23,7 @@ def download():
     wrapper = EdinetApiWrapper(edinet_api_key, download_path)
 
     start_date = datetime(2024, 6, 1)
-    end_date = datetime(2024, 6, 2)
+    end_date = datetime(2024, 6, 10)
     wrapper.download_xbrl_files(start_date, end_date)
 
 
@@ -40,3 +40,7 @@ def analyze():
     # 現在の株価とscoreを並列に並べる
 
     pass
+
+
+# download()
+analyze()
