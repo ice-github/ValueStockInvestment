@@ -2,6 +2,8 @@ from bs4 import BeautifulSoup
 import urllib.parse
 import requests
 import yfinance as yf
+from datetime import datetime, timedelta
+import time
 
 
 class YahooFinanceJPWrapper:
@@ -18,8 +20,16 @@ class YahooFinanceJPWrapper:
         self._company_atag_class = "_1WbkBLD0"
         self._stock_price_class = "_1fofaCjs _2aohzPlv _2eYW5OYe"
         self._aggregate_market_value_class = "_3rXWJKZF _1NrnBlaN"
+        self._request_duration_seconds = 0.5
+        self._previous_request_date = datetime.now()
 
-    def get_company_info(self, company_name: str) -> tuple[int, int, str]:
+    def get_company_info(self, company_name: str) -> tuple[float, float, str]:
+
+        # wait for request timing
+        target_datetime = self._previous_request_date + timedelta(seconds=self._request_duration_seconds)
+        while datetime.now() < target_datetime:
+            time.sleep(0.01)
+        self._previous_request_date = datetime.now()
 
         # trim
         company_name = company_name.replace("株式会社", "")
@@ -44,10 +54,10 @@ class YahooFinanceJPWrapper:
                     continue
 
                 for span in tag.find_all("span", class_=self._stock_price_class):
-                    stock_price = int(span.text.replace(",", ""))
+                    stock_price = float(span.text.replace(",", ""))
 
                 for span in tag.find_all("span", class_=self._aggregate_market_value_class):
-                    aggregate_market_value = int(span.text.replace(",", "")) * 1000000
+                    aggregate_market_value = float(span.text.replace(",", "")) * 1000000
 
                 ticker = self._get_last_path_segment(tag["href"])
 
@@ -55,7 +65,7 @@ class YahooFinanceJPWrapper:
         except Exception as e:
             print(f"エラーが発生しました: {e}")
 
-        return (-1, -1, "")
+        return (-1.0, -1.0, "")
 
 
 class YahooFinanceWrapper:
