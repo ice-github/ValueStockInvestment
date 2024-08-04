@@ -138,7 +138,7 @@ class XBRLParserWrapper:
         else:
             value4 = float(value_str4)
 
-        score_per_stock = (value1 + value2 * 0.7 - value3) / value4
+        score_per_stock = (value1 + value2 * 0.6 - value3) / value4
         return score_per_stock
 
     def get_company_name(self) -> str:

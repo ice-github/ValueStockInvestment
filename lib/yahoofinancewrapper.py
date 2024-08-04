@@ -60,6 +60,8 @@ class YahooFinanceJPWrapper:
                     aggregate_market_value = float(span.text.replace(",", "")) * 1000000
 
                 ticker = self._get_last_path_segment(tag["href"])
+                if not ticker[0].isdigit():
+                    continue
 
                 return (stock_price, aggregate_market_value, ticker)
         except Exception as e:
