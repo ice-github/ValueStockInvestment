@@ -100,11 +100,11 @@ def analyze():
             industry_name = minkabu.get_industry_name()
             if "建設" in industry_name:
                 continue
-
             if "銀行" in industry_name:
                 continue
-
             if "不動産" in industry_name:
+                continue
+            if "証券" in industry_name:
                 continue
 
             research_analysis = minkabu.get_research_analysis()
@@ -124,7 +124,8 @@ def analyze():
 
             critical_ratio = score_ratio / per
 
-            print(company_name + ": ", end="")
+            print(company_name + " ", end="")
+            print(ticker + ": ", end="")
             print(str(score_ratio) + " / ", end="")
             print(str(per) + " = ", end="")
             print(str(critical_ratio) + ", ", end="")
